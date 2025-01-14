@@ -50,4 +50,3 @@ curl http://localhost:9094/v1/menu-aggregate/1
 printf "\n\n"
 curl "http://localhost:9094/v1/menu-aggregate?category=DRINKS"
 printf "\n\n"
-
