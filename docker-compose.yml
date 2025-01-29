@@ -29,6 +29,7 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - DISCOVERY_SERVICE_URL=${DISCOVERY_SERVICE_URL}
       - ZIPKIN_URL=${ZIPKIN_URL}
+      - LOKI_URL=${LOKI_URL}
 
   review-service:
     image: "review-service"
@@ -49,6 +50,7 @@ services:
       - DB_URL=${REVIEW_DB_URL}
       - DISCOVERY_SERVICE_URL=${DISCOVERY_SERVICE_URL}
       - ZIPKIN_URL=${ZIPKIN_URL}
+      - LOKI_URL=${LOKI_URL}
 
   orders-service:
     image: "orders-service"
@@ -72,6 +74,7 @@ services:
       - SCHEMA_REGISTRY_URL=${SCHEMA_REGISTRY_URL}
       - DISCOVERY_SERVICE_URL=${DISCOVERY_SERVICE_URL}
       - ZIPKIN_URL=${ZIPKIN_URL}
+      - LOKI_URL=${LOKI_URL}
 
   dispatcher-service:
     image: "dispatcher-service"
@@ -87,6 +90,7 @@ services:
       - SPRING_PROFILES_ACTIVE=prod
       - KAFKA_BOOTSTRAP_SERVERS=${KAFKA_BOOTSTRAP_SERVERS}
       - SCHEMA_REGISTRY_URL=${SCHEMA_REGISTRY_URL}
+      - LOKI_URL=${LOKI_URL}
 
   menu-service:
     image: "menu-service"
@@ -107,6 +111,7 @@ services:
       - DB_URL=${MENU_DB_URL}
       - DISCOVERY_SERVICE_URL=${DISCOVERY_SERVICE_URL}
       - ZIPKIN_URL=${ZIPKIN_URL}
+      - LOKI_URL=${LOKI_URL}
 
 #  menu-service-2:
 #    image: "menu-service"
@@ -127,6 +132,7 @@ services:
 #      - DB_URL=${MENU_DB_URL}
 #      - DISCOVERY_SERVICE_URL=${DISCOVERY_SERVICE_URL}
 #      - ZIPKIN_URL=${ZIPKIN_URL}
+#      - LOKI_URL=${LOKI_URL}
 
   discovery-service:
     image: "discovery-service"
@@ -161,6 +167,7 @@ services:
       - ZIPKIN_URL=${ZIPKIN_URL}
       - KEYCLOAK_URL=${KEYCLOAK_URL}
       - JWK_SET_URL=${JWK_SET_URL}
+      - LOKI_URL=${LOKI_URL}
 
   postgres:
     image: "postgres:16.1"
@@ -270,11 +277,11 @@ services:
     ports:
       - "6379:6379"
 
-  zipkin:
-    image: "openzipkin/zipkin:3"
-    container_name: "zipkin"
-    ports:
-      - "9411:9411"
+#  zipkin:
+#    image: "openzipkin/zipkin:3"
+#    container_name: "zipkin"
+#    ports:
+#      - "9411:9411"
 
   keycloak:
     image: quay.io/keycloak/keycloak:24.0
@@ -294,6 +301,48 @@ services:
       interval: 5s
       timeout: 5s
       retries: 100
+
+  prometheus:
+    image: "prom/prometheus:v2.51.2"
+    container_name: "prometheus"
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+
+  tempo:
+    image: grafana/tempo:2.4.2
+    command: -config.file=/etc/tempo.yml
+    container_name: tempo
+    ports:
+      - "3200:3200"   # tempo
+      - "9411:9411"   # zipkin
+    volumes:
+      - ./tempo/tempo.yml:/etc/tempo.yml
+
+  loki:
+    image: grafana/loki:main
+    command: -config.file=/etc/loki/local-config.yaml
+    container_name: loki
+    ports:
+      - "3100:3100"
+
+  grafana:
+    image: "grafana/grafana-oss:11.2.0"
+    container_name: "grafana"
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+    environment:
+      - GF_AUTH_ANONYMOUS_ENABLED=true
+      - GF_AUTH_ANONYMOUS_ORG_ROLE=Admin
+      - GF_AUTH_DISABLE_LOGIN_FORM=true
+    volumes:
+      - ./grafana/dashboards:/etc/grafana/provisioning/dashboards
+      - ./grafana/datasource.yml:/etc/grafana/provisioning/datasources/datasource.yml
 
 volumes:
   db-data:
